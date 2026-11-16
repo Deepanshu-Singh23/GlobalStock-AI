@@ -5,14 +5,15 @@ import yfinance as yf
 import os
 import numpy as np
 
-PROJECT_PATH = "/content/drive/MyDrive/GlobalStock_AI"
+
+PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
+
 DATA_PATH = os.path.join(PROJECT_PATH, "data", "processed")
 PRICE_PATH = os.path.join(PROJECT_PATH, "data", "raw", "prices")
 
 MASTER_FILE = os.path.join(DATA_PATH, "global_stock_master.csv")
 SCREENER_FILE = os.path.join(DATA_PATH, "technical_screener_results.csv")
 
-os.makedirs(PRICE_PATH, exist_ok=True)
 
 st.set_page_config(
     page_title="GlobalStock AI",
