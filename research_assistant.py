@@ -7,11 +7,12 @@ from datetime import datetime
 PROJECT_PATH = "/content/drive/MyDrive/GlobalStock_AI"
 
 REPORT_PATH = os.path.join(
-    PROJECT_PATH, "data", "processed", "research_reports"
+    tempfile.gettempdir(),
+    "globalstock_ai",
+    "reports"
 )
 
 os.makedirs(REPORT_PATH, exist_ok=True)
-
 
 def valid_number(value):
     try:
