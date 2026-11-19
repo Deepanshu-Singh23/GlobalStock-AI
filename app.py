@@ -6,10 +6,14 @@ import os
 import numpy as np
 
 
+
 PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 DATA_PATH = os.path.join(PROJECT_PATH, "data", "processed")
-PRICE_PATH = os.path.join(PROJECT_PATH, "data", "raw", "prices")
+PRICE_PATH = "/tmp/globalstock_ai/prices"
+
+os.makedirs(PRICE_PATH, exist_ok=True)
+
 
 MASTER_FILE = os.path.join(DATA_PATH, "global_stock_master.csv")
 SCREENER_FILE = os.path.join(DATA_PATH, "technical_screener_results.csv")
