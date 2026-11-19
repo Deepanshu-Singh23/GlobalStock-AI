@@ -2750,109 +2750,218 @@ else:
 
 
 
-# DATA_QUALITY_START
 
-st.markdown("---")
+# GLOBAL_DATA_QUALITY_START
+
+st.divider()
 st.header("🛡️ Global Data Quality Monitor")
 
 st.caption(
     "Historical dataset completeness, integrity and coverage monitoring."
 )
 
-from data_quality import build_quality_report
+try:
 
-quality_dir = os.path.join(
-    PROJECT_PATH,
-    "data",
-    "processed",
-    "data_quality"
-)
+    from data_quality import build_quality_report
 
-quality_file = os.path.join(
-    quality_dir,
-    "price_quality_report.csv"
-)
+    # Locate project files
+    QUALITY_BASE = os.path.dirname(os.path.abspath(__file__))
 
-coverage_file = os.path.join(
-    quality_dir,
-    "global_coverage_report.csv"
-)
-
-country_file = os.path.join(
-    quality_dir,
-    "country_quality_report.csv"
-)
-
-exchange_file = os.path.join(
-    quality_dir,
-    "exchange_quality_report.csv"
-)
-
-if all(os.path.exists(p) for p in [
-    quality_file, coverage_file,
-    country_file, exchange_file
-]):
-
-    quality_data = pd.read_csv(quality_file)
-    coverage_data = pd.read_csv(coverage_file)
-    country_data = pd.read_csv(country_file)
-    exchange_data = pd.read_csv(exchange_file)
-
-    q1, q2, q3 = st.columns(3)
-
-    q1.metric(
-        "Price Files",
-        len(quality_data)
+    QUALITY_DATA_PATH = os.path.join(
+        QUALITY_BASE, "data", "processed"
     )
 
-    q2.metric(
-        "Inspected Successfully",
-        int((quality_data["status"] == "OK").sum())
+    QUALITY_MASTER_FILE = os.path.join(
+        QUALITY_DATA_PATH, "global_stock_master.csv"
     )
 
-    q3.metric(
-        "Average Quality Score",
-        round(quality_data["quality_score"].mean(), 2)
+    QUALITY_MARKET_FILE = os.path.join(
+        QUALITY_DATA_PATH, "synchronized_market_data.csv"
     )
 
-    st.subheader("Country-wise Coverage")
+    QUALITY_PRICE_PATH = "/tmp/globalstock_ai/prices"
 
-    st.dataframe(
-        country_data,
-        use_container_width=True
-    )
+    # Load datasets
+    if not os.path.isfile(QUALITY_MASTER_FILE):
+        st.error("Global stock master dataset not found.")
 
-    st.subheader("Exchange-wise Coverage")
+    elif not os.path.isfile(QUALITY_MARKET_FILE):
+        st.warning("Synchronized market dataset not found.")
 
-    st.dataframe(
-        exchange_data,
-        use_container_width=True
-    )
+    else:
 
-    st.subheader("Data Quality Issues")
+        quality_master = pd.read_csv(
+            QUALITY_MASTER_FILE
+        )
 
-    issue_columns = [
-        "file", "missing_values",
-        "duplicate_dates", "invalid_ohlc",
-        "negative_volume", "missing_dates"
-    ]
+        quality_market = pd.read_csv(
+            QUALITY_MARKET_FILE
+        )
 
-    st.dataframe(
-        quality_data[issue_columns],
-        use_container_width=True
-    )
+        # Generate report automatically
+        quality_report = build_quality_report(
+            quality_master,
+            quality_market,
+            QUALITY_PRICE_PATH
+        )
 
-    st.download_button(
-        "Download Complete Quality Report",
-        quality_data.to_csv(index=False),
-        "price_quality_report.csv",
-        "text/csv"
-    )
+        st.success("Data Quality Engine executed successfully.")
 
-else:
+        # Overall metrics
+        st.subheader("1. Overall Data Quality")
 
-    st.warning(
-        "Quality reports not found. Run the Data Quality Engine first."
-    )
+        q1, q2, q3 = st.columns(3)
 
-# DATA_QUALITY_END
+        q1.metric(
+            "Quality Score",
+            f"{quality_report['quality_score']:.2f}%"
+        )
+
+        q2.metric(
+            "Market Records",
+            f"{quality_report['market_audit']['rows']:,}"
+        )
+
+        q3.metric(
+            "Price Files Inspected",
+            len(quality_report["price_files"])
+        )
+
+        # Dataset audit
+        st.subheader("2. Dataset Audit")
+
+        audit_col1, audit_col2 = st.columns(2)
+
+        with audit_col1:
+            st.write("Master Dataset")
+            st.json(quality_report["master_audit"])
+
+        with audit_col2:
+            st.write("Market Dataset")
+            st.json(quality_report["market_audit"])
+
+        # Column quality
+        st.subheader("3. Column-wise Data Quality")
+
+        st.dataframe(
+            quality_report["column_quality"],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # Duplicate symbols
+        st.subheader("4. Duplicate Stock Listings")
+
+        duplicates = quality_report["duplicate_symbols"]
+
+        if not duplicates.empty:
+            st.warning(
+                f"{len(duplicates)} duplicate listing records found."
+            )
+
+            st.dataframe(
+                duplicates,
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.success("No duplicate stock listings found.")
+
+        # Country coverage
+        st.subheader("5. Country-wise Coverage")
+
+        st.dataframe(
+            quality_report["country_coverage"],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # Exchange coverage
+        st.subheader("6. Exchange-wise Coverage")
+
+        st.dataframe(
+            quality_report["exchange_coverage"],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # Price file audit
+        st.subheader("7. Historical Price File Audit")
+
+        price_quality = quality_report["price_files"]
+
+        if not price_quality.empty:
+
+            st.dataframe(
+                price_quality,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            st.download_button(
+                "Download Price Quality Report",
+                price_quality.to_csv(index=False),
+                "price_quality_report.csv",
+                "text/csv"
+            )
+
+        else:
+
+            st.info(
+                "No historical price files found in the configured cache."
+            )
+
+        # Date audit
+        st.subheader("8. Historical Date Coverage")
+
+        st.dataframe(
+            quality_report["date_audit"],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # Download reports
+        st.subheader("9. Download Complete Reports")
+
+        report_data = pd.DataFrame([
+            {
+                "metric": "Quality Score",
+                "value": quality_report["quality_score"]
+            },
+            {
+                "metric": "Master Records",
+                "value": quality_report["master_audit"]["rows"]
+            },
+            {
+                "metric": "Market Records",
+                "value": quality_report["market_audit"]["rows"]
+            },
+            {
+                "metric": "Duplicate Market Rows",
+                "value": quality_report["market_audit"]["duplicate_rows"]
+            },
+            {
+                "metric": "Missing Market Cells",
+                "value": quality_report["market_audit"]["missing_cells"]
+            }
+        ])
+
+        st.download_button(
+            "Download Complete Data Quality Summary",
+            report_data.to_csv(index=False),
+            "global_data_quality_summary.csv",
+            "text/csv"
+        )
+
+        st.caption(
+            "Generated at: " +
+            quality_report["generated_at"]
+        )
+
+except Exception as error:
+
+    st.error("Data Quality Monitor encountered an error.")
+
+    st.exception(error)
+
+# GLOBAL_DATA_QUALITY_END
