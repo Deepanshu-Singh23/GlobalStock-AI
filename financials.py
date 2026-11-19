@@ -1,12 +1,16 @@
+
 import os
 import time
+import tempfile
 import pandas as pd
 import yfinance as yf
 
-PROJECT_PATH = "/content/drive/MyDrive/GlobalStock_AI"
+PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 FINANCIALS_PATH = os.path.join(
-    PROJECT_PATH, "data", "processed", "financials"
+    tempfile.gettempdir(),
+    "globalstock_ai",
+    "financials"
 )
 
 os.makedirs(FINANCIALS_PATH, exist_ok=True)
@@ -14,10 +18,11 @@ os.makedirs(FINANCIALS_PATH, exist_ok=True)
 
 def get_financial_file(symbol, period_type):
     safe_symbol = (
-        symbol.replace(".", "_")
-              .replace("/", "_")
-              .replace("\\", "_")
+        str(symbol).replace(".", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
     )
+
     return os.path.join(
         FINANCIALS_PATH,
         f"{safe_symbol}_{period_type}.csv"
@@ -113,7 +118,12 @@ def get_financial_statements(symbol, force_refresh=False):
             try:
                 annual = pd.read_csv(annual_file)
                 quarterly = pd.read_csv(quarterly_file)
-                return annual, quarterly, "Loaded from Drive cache"
+
+                return (
+                    annual,
+                    quarterly,
+                    "Loaded from local cache"
+                )
             except Exception:
                 pass
 
@@ -123,7 +133,10 @@ def get_financial_statements(symbol, force_refresh=False):
         annual_raw = ticker.income_stmt
         quarterly_raw = ticker.quarterly_income_stmt
 
-        annual = prepare_statement(annual_raw, "Annual")
+        annual = prepare_statement(
+            annual_raw, "Annual"
+        )
+
         quarterly = prepare_statement(
             quarterly_raw, "Quarterly"
         )
