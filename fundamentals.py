@@ -1,18 +1,21 @@
+
 import os
+import json
+import time
 import tempfile
+import yfinance as yf
 
 PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
 
-FINANCIALS_PATH = os.path.join(
+FUNDAMENTALS_PATH = os.path.join(
     tempfile.gettempdir(),
     "globalstock_ai",
-    "financials"
+    "fundamentals"
 )
 
-os.makedirs(FINANCIALS_PATH, exist_ok=True)
+os.makedirs(FUNDAMENTALS_PATH, exist_ok=True)
 
 FUNDAMENTAL_FIELDS = [
-    # Company information
     "longName", "shortName", "symbol",
     "quoteType", "sector", "industry", "country", "currency",
     "marketCap", "enterpriseValue",
@@ -25,46 +28,45 @@ FUNDAMENTAL_FIELDS = [
     "longBusinessSummary", "fullTimeEmployees",
     "currentPrice", "previousClose",
     "fiftyTwoWeekHigh", "fiftyTwoWeekLow",
-
-    # Fund / ETF information
     "fundFamily", "category",
     "navPrice", "netAssets", "totalAssets",
     "netExpenseRatio", "annualReportExpenseRatio",
     "yield", "trailingAnnualDividendYield",
     "ytdReturn", "trailingThreeMonthReturns",
     "trailingThreeMonthNavReturns",
-    "beta3Year",
-    "regularMarketPrice",
-    "regularMarketVolume",
-    "averageVolume",
+    "beta3Year", "regularMarketPrice",
+    "regularMarketVolume", "averageVolume",
     "averageDailyVolume10Day",
     "averageDailyVolume3Month",
     "fundInceptionDate"
 ]
 
+
 def get_cache_file(symbol):
     safe_symbol = (
-        symbol.replace(".", "_")
-              .replace("/", "_")
-              .replace("\\", "_")
+        str(symbol).replace(".", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
     )
+
     return os.path.join(
-        FUNDAMENTALS_PATH, safe_symbol + ".json"
+        FUNDAMENTALS_PATH,
+        safe_symbol + ".json"
     )
+
 
 def get_fundamentals(symbol, force_refresh=False):
 
     cache_file = get_cache_file(symbol)
 
-    # Reuse data if cache is less than 24 hours old
     if os.path.exists(cache_file) and not force_refresh:
         age = time.time() - os.path.getmtime(cache_file)
 
         if age < 86400:
             try:
                 with open(cache_file, "r") as f:
-                    return json.load(f), "Loaded from Drive cache"
-            except Exception:
+                    return json.load(f), "Loaded from local cache"
+            except (OSError, ValueError):
                 pass
 
     try:
@@ -84,10 +86,13 @@ def get_fundamentals(symbol, force_refresh=False):
             "%Y-%m-%d %H:%M:%S"
         )
 
-        with open(cache_file, "w") as f:
-            json.dump(info, f, indent=4, default=str)
+        try:
+            with open(cache_file, "w") as f:
+                json.dump(info, f, indent=4, default=str)
+        except OSError:
+            pass
 
-        return info, "Fresh fundamentals downloaded and saved"
+        return info, "Fresh fundamentals downloaded"
 
     except Exception as error:
         return {}, f"Fundamentals error: {str(error)}"
