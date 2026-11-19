@@ -1,14 +1,15 @@
 import os
-import json
-import time
-import yfinance as yf
-
+import tempfile
 
 PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
 
-FUNDAMENTALS_PATH = "/tmp/globalstock_ai/fundamentals"
+FINANCIALS_PATH = os.path.join(
+    tempfile.gettempdir(),
+    "globalstock_ai",
+    "financials"
+)
 
-os.makedirs(FUNDAMENTALS_PATH, exist_ok=True)
+os.makedirs(FINANCIALS_PATH, exist_ok=True)
 
 FUNDAMENTAL_FIELDS = [
     # Company information
