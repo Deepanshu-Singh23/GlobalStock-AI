@@ -609,271 +609,449 @@ else:
 
 
 
+
 # GLOBAL_MARKET_INTELLIGENCE_START
+
+import os
+import glob
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
 
 st.divider()
 st.header("🌍 Global Market Intelligence")
 
 st.caption(
-    "Historical market analytics using synchronized available price data. "
-    "Coverage and dates vary by market."
+    "Global market analytics using available historical price data."
 )
 
-@st.cache_data(ttl=1800)
-def load_market_csv(filename):
-    path = os.path.join(DATA_PATH, filename)
-    if os.path.exists(path):
-        return pd.read_csv(path)
-    return pd.DataFrame()
+# ------------------------------------------------
+# FIND PROJECT DATA DIRECTORY
+# ------------------------------------------------
 
-market_df = load_market_csv("synchronized_market_data.csv")
-country_df = load_market_csv("synchronized_country_analytics.csv")
-exchange_df = load_market_csv("synchronized_exchange_analytics.csv")
-sector_df = load_market_csv("sector_summary.csv")
-sector_detail_df = load_market_csv("sector_analysis.csv")
-global_screener_df = load_market_csv("technical_screener_results.csv")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-if not market_df.empty:
+possible_paths = [
+    os.path.join(BASE_DIR, "data", "processed"),
+    os.path.join(BASE_DIR, "data"),
+    BASE_DIR
+]
 
-    market_df["price_date"] = pd.to_datetime(
-        market_df["price_date"], errors="coerce"
+DATA_FOLDER = None
+
+for folder in possible_paths:
+    candidate = os.path.join(
+        folder, "synchronized_market_data.csv"
     )
 
-    market_df = market_df.drop_duplicates(
-        subset=["country", "symbol"]
+    if os.path.isfile(candidate):
+        DATA_FOLDER = folder
+        break
+
+# Fallback: search project subdirectories
+if DATA_FOLDER is None:
+    matches = glob.glob(
+        os.path.join(
+            BASE_DIR,
+            "**",
+            "synchronized_market_data.csv"
+        ),
+        recursive=True
     )
 
-    latest_market_date = market_df["price_date"].max()
+    if matches:
+        DATA_FOLDER = os.path.dirname(matches[0])
 
-    advancing = (
-        pd.to_numeric(
-            market_df["daily_return_pct"], errors="coerce"
-        ) > 0
-    ).sum()
+# ------------------------------------------------
+# LOAD DATA
+# ------------------------------------------------
 
-    declining = (
-        pd.to_numeric(
-            market_df["daily_return_pct"], errors="coerce"
-        ) < 0
-    ).sum()
+if DATA_FOLDER is None:
 
-    unchanged = len(market_df) - advancing - declining
-
-    st.caption(
-        f"Common market date: "
-        f"{latest_market_date.strftime('%d %B %Y') if pd.notna(latest_market_date) else 'Unavailable'}"
+    st.error(
+        "Synchronized market dataset not found."
     )
 
-    # 1. GLOBAL MARKET OVERVIEW
-    st.subheader("1. Global Market Overview")
-
-    c1, c2, c3, c4 = st.columns(4)
-
-    c1.metric("Securities with Prices", f"{len(market_df):,}")
-    c2.metric("Countries", market_df["country"].nunique())
-    c3.metric("Exchanges", market_df["exchange_code"].nunique())
-    c4.metric("Advancing Securities", f"{advancing:,}")
-
-    c5, c6, c7 = st.columns(3)
-
-    c5.metric("Declining Securities", f"{declining:,}")
-    c6.metric("Unchanged Securities", f"{unchanged:,}")
-
-    decline_ratio = (
-        declining / len(market_df) * 100
-        if len(market_df) else 0
+    st.info(
+        "Check that synchronized_market_data.csv "
+        "is uploaded inside data/processed."
     )
-    c7.metric("Declining Share", f"{decline_ratio:.1f}%")
-
-    movement_fig = go.Figure(
-        data=[
-            go.Bar(
-                x=["Advancing", "Declining", "Unchanged"],
-                y=[advancing, declining, unchanged]
-            )
-        ]
-    )
-    movement_fig.update_layout(
-        title="Market Breadth",
-        xaxis_title="Market Movement",
-        yaxis_title="Number of Securities",
-        height=350
-    )
-    st.plotly_chart(movement_fig, use_container_width=True)
-
-    st.divider()
-
-    # 2. COUNTRY ANALYTICS
-    st.subheader("2. Country Analytics")
-
-    if not country_df.empty:
-        st.dataframe(
-            country_df,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        country_fig = go.Figure(
-            data=[
-                go.Bar(
-                    x=country_df["country"],
-                    y=country_df["stocks_with_prices"]
-                )
-            ]
-        )
-        country_fig.update_layout(
-            title="Securities with Available Prices by Country",
-            xaxis_title="Country",
-            yaxis_title="Securities",
-            height=380
-        )
-        st.plotly_chart(country_fig, use_container_width=True)
-
-        if "median_daily_return" in country_df.columns:
-            return_fig = go.Figure(
-                data=[
-                    go.Bar(
-                        x=country_df["country"],
-                        y=country_df["median_daily_return"]
-                    )
-                ]
-            )
-            return_fig.update_layout(
-                title="Median Daily Return by Country",
-                yaxis_title="Median Daily Return (%)",
-                height=350
-            )
-            st.plotly_chart(return_fig, use_container_width=True)
-    else:
-        st.info("Country analytics data is unavailable.")
-
-    st.divider()
-
-    # 3. EXCHANGE ANALYTICS
-    st.subheader("3. Exchange Analytics")
-
-    if not exchange_df.empty:
-        st.dataframe(
-            exchange_df,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        exchange_fig = go.Figure(
-            data=[
-                go.Bar(
-                    x=exchange_df["exchange_code"],
-                    y=exchange_df["stocks_with_prices"]
-                )
-            ]
-        )
-        exchange_fig.update_layout(
-            title="Available Securities by Exchange",
-            xaxis_title="Exchange",
-            yaxis_title="Securities",
-            height=380
-        )
-        st.plotly_chart(exchange_fig, use_container_width=True)
-    else:
-        st.info("Exchange analytics data is unavailable.")
-
-    st.divider()
-
-    # 4. SECTOR ANALYSIS
-    st.subheader("4. Sector Analysis")
-
-    if not sector_df.empty:
-        st.caption(
-            "Sector results include only securities with available "
-            "sector classification and sufficient historical data."
-        )
-
-        st.dataframe(
-            sector_df,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        if "sector" in sector_df.columns and "securities" in sector_df.columns:
-            sector_fig = go.Figure(
-                data=[
-                    go.Bar(
-                        x=sector_df["sector"],
-                        y=sector_df["securities"]
-                    )
-                ]
-            )
-            sector_fig.update_layout(
-                title="Securities by Classified Sector",
-                xaxis_title="Sector",
-                yaxis_title="Securities",
-                height=400
-            )
-            st.plotly_chart(sector_fig, use_container_width=True)
-    else:
-        st.info("Sector analysis data is unavailable.")
-
-    if not sector_detail_df.empty:
-        with st.expander("View Sector Classification Details"):
-            st.dataframe(
-                sector_detail_df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-    st.divider()
-
-    # 5. GLOBAL TECHNICAL SCREENER
-    st.subheader("5. Global Technical Screener")
-
-    if not global_screener_df.empty:
-
-        st.caption(
-            f"Technical indicator records available: "
-            f"{len(global_screener_df):,}. "
-            "Only securities with calculated indicators are shown."
-        )
-
-        if "symbol" in global_screener_df.columns:
-            search_symbol = st.text_input(
-                "Search symbol in technical screener",
-                key="global_market_screener_search"
-            )
-
-            screener_view = global_screener_df.copy()
-
-            if search_symbol.strip():
-                screener_view = screener_view[
-                    screener_view["symbol"].astype(str).str.contains(
-                        search_symbol.strip(),
-                        case=False,
-                        na=False
-                    )
-                ]
-
-            st.dataframe(
-                screener_view,
-                use_container_width=True,
-                hide_index=True
-            )
-        else:
-            st.dataframe(
-                global_screener_df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-    else:
-        st.info(
-            "Technical screener data is not available yet. "
-            "The synchronized market dataset is still available above."
-        )
 
 else:
-    st.warning(
-        "Synchronized market dataset not found. "
-        "Please run the Market Intelligence data preparation cells first."
+
+    st.success(
+        f"Market dataset located: {DATA_FOLDER}"
     )
+
+    def load_csv(filename):
+
+        path = os.path.join(DATA_FOLDER, filename)
+
+        if os.path.isfile(path):
+            try:
+                return pd.read_csv(path)
+            except Exception as error:
+                st.warning(
+                    f"Could not read {filename}: {error}"
+                )
+
+        return pd.DataFrame()
+
+    market_df = load_csv(
+        "synchronized_market_data.csv"
+    )
+
+    country_df = load_csv(
+        "synchronized_country_analytics.csv"
+    )
+
+    exchange_df = load_csv(
+        "synchronized_exchange_analytics.csv"
+    )
+
+    sector_df = load_csv(
+        "sector_summary.csv"
+    )
+
+    sector_detail_df = load_csv(
+        "sector_analysis.csv"
+    )
+
+    screener_df = load_csv(
+        "technical_screener_results.csv"
+    )
+
+    # ------------------------------------------------
+    # VALIDATE DATA
+    # ------------------------------------------------
+
+    required_columns = [
+        "symbol",
+        "country",
+        "exchange_code",
+        "latest_close",
+        "daily_return_pct",
+        "return_1m_pct",
+        "return_3m_pct"
+    ]
+
+    if market_df.empty:
+
+        st.warning(
+            "Market dataset exists but contains no records."
+        )
+
+    elif not all(
+        col in market_df.columns
+        for col in required_columns
+    ):
+
+        st.error(
+            "Required columns are missing from market dataset."
+        )
+
+        st.write(
+            "Available columns:",
+            market_df.columns.tolist()
+        )
+
+    else:
+
+        # Convert numerical columns
+        numeric_columns = [
+            "latest_close",
+            "daily_return_pct",
+            "return_1m_pct",
+            "return_3m_pct",
+            "return_1y_pct"
+        ]
+
+        for col in numeric_columns:
+
+            if col in market_df.columns:
+                market_df[col] = pd.to_numeric(
+                    market_df[col],
+                    errors="coerce"
+                )
+
+        market_df = market_df.drop_duplicates(
+            subset=["country", "symbol"]
+        ).copy()
+
+        if "price_date" in market_df.columns:
+
+            market_df["price_date"] = pd.to_datetime(
+                market_df["price_date"],
+                errors="coerce"
+            )
+
+        # ------------------------------------------------
+        # GLOBAL MARKET OVERVIEW
+        # ------------------------------------------------
+
+        st.subheader("1. Global Market Overview")
+
+        total_stocks = len(market_df)
+
+        countries = market_df["country"].nunique()
+
+        exchanges = market_df["exchange_code"].nunique()
+
+        advancing = (
+            market_df["daily_return_pct"] > 0
+        ).sum()
+
+        declining = (
+            market_df["daily_return_pct"] < 0
+        ).sum()
+
+        unchanged = (
+            market_df["daily_return_pct"] == 0
+        ).sum()
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "Securities",
+            f"{total_stocks:,}"
+        )
+
+        c2.metric(
+            "Countries",
+            countries
+        )
+
+        c3.metric(
+            "Exchanges",
+            exchanges
+        )
+
+        c4.metric(
+            "Advancing",
+            f"{advancing:,}"
+        )
+
+        c5, c6, c7 = st.columns(3)
+
+        c5.metric("Declining", f"{declining:,}")
+
+        c6.metric("Unchanged", f"{unchanged:,}")
+
+        c7.metric(
+            "Declining Share",
+            f"{declining / max(total_stocks, 1) * 100:.2f}%"
+        )
+
+        movement_fig = go.Figure(
+            data=[
+                go.Bar(
+                    x=[
+                        "Advancing",
+                        "Declining",
+                        "Unchanged"
+                    ],
+                    y=[
+                        advancing,
+                        declining,
+                        unchanged
+                    ]
+                )
+            ]
+        )
+
+        movement_fig.update_layout(
+            title="Global Market Breadth",
+            height=350
+        )
+
+        st.plotly_chart(
+            movement_fig,
+            use_container_width=True
+        )
+
+        # ------------------------------------------------
+        # COUNTRY ANALYTICS
+        # ------------------------------------------------
+
+        st.divider()
+
+        st.subheader("2. Country Analytics")
+
+        if not country_df.empty:
+
+            st.dataframe(
+                country_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            country_summary = (
+                market_df.groupby("country")
+                .agg(
+                    stocks_with_prices=("symbol", "nunique"),
+                    median_daily_return=(
+                        "daily_return_pct", "median"
+                    )
+                )
+                .reset_index()
+            )
+
+            st.dataframe(
+                country_summary,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        # ------------------------------------------------
+        # EXCHANGE ANALYTICS
+        # ------------------------------------------------
+
+        st.divider()
+
+        st.subheader("3. Exchange Analytics")
+
+        if not exchange_df.empty:
+
+            st.dataframe(
+                exchange_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            exchange_summary = (
+                market_df.groupby("exchange_code")
+                .agg(
+                    stocks_with_prices=("symbol", "nunique"),
+                    median_daily_return=(
+                        "daily_return_pct", "median"
+                    )
+                )
+                .reset_index()
+            )
+
+            st.dataframe(
+                exchange_summary,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        # ------------------------------------------------
+        # SECTOR ANALYSIS
+        # ------------------------------------------------
+
+        st.divider()
+
+        st.subheader("4. Sector Analysis")
+
+        if not sector_df.empty:
+
+            st.dataframe(
+                sector_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        elif "sector" in market_df.columns:
+
+            sector_summary = (
+                market_df.groupby("sector")
+                .agg(
+                    securities=("symbol", "nunique"),
+                    median_return=(
+                        "daily_return_pct", "median"
+                    )
+                )
+                .reset_index()
+            )
+
+            st.dataframe(
+                sector_summary,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            st.info(
+                "Sector classification is unavailable."
+            )
+
+        if not sector_detail_df.empty:
+
+            with st.expander(
+                "View Sector Classification Details"
+            ):
+
+                st.dataframe(
+                    sector_detail_df,
+                    use_container_width=True
+                )
+
+        # ------------------------------------------------
+        # GLOBAL TECHNICAL SCREENER
+        # ------------------------------------------------
+
+        st.divider()
+
+        st.subheader("5. Global Technical Screener")
+
+        if not screener_df.empty:
+
+            if "symbol" in screener_df.columns:
+
+                search = st.text_input(
+                    "Search stock symbol",
+                    key="global_market_search"
+                )
+
+                if search.strip():
+
+                    screener_df = screener_df[
+                        screener_df["symbol"]
+                        .astype(str)
+                        .str.contains(
+                            search.strip(),
+                            case=False,
+                            na=False
+                        )
+                    ]
+
+            st.dataframe(
+                screener_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            st.info(
+                "Technical screener data is unavailable."
+            )
+
+        # ------------------------------------------------
+        # DOWNLOAD DATA
+        # ------------------------------------------------
+
+        st.divider()
+
+        st.subheader("Download Market Dataset")
+
+        st.download_button(
+            "Download Global Market Data",
+            data=market_df.to_csv(
+                index=False
+            ).encode("utf-8"),
+            file_name="global_market_data.csv",
+            mime="text/csv"
+        )
+
+        st.success(
+            "Global Market Intelligence loaded successfully."
+        )
 
 # GLOBAL_MARKET_INTELLIGENCE_END
 
