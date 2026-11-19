@@ -110,3 +110,20 @@ GitHub: https://github.com/Deepanshu-Singh23
 ---
 
 *GlobalStock AI — Explore Markets. Analyze Data. Discover Insights.*
+
+
+
+## 🏗️ System Architecture
+
+The GlobalStock AI platform follows a modular architecture:
+
+1. External Data Sources
+2. Data Collection and Processing
+3. Data Storage and Management
+4. Analytics and Research Engine
+5. Streamlit Dashboard
+6. User Interface and Research Insights
+
+The architecture separates data processing, analytics,
+and presentation to support modular development
+and maintainability.
