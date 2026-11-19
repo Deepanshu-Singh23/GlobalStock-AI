@@ -2581,11 +2581,7 @@ st.caption(
     "Historical dataset completeness, integrity and coverage monitoring."
 )
 
-from data_quality import (
-    build_quality_report,
-    build_coverage_report,
-    build_group_quality
-)
+from data_quality import build_quality_report
 
 quality_dir = os.path.join(
     PROJECT_PATH,
