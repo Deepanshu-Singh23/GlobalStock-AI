@@ -3,11 +3,10 @@ import json
 import time
 import yfinance as yf
 
-PROJECT_PATH = "/content/drive/MyDrive/GlobalStock_AI"
 
-FUNDAMENTALS_PATH = os.path.join(
-    PROJECT_PATH, "data", "processed", "fundamentals"
-)
+PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
+
+FUNDAMENTALS_PATH = "/tmp/globalstock_ai/fundamentals"
 
 os.makedirs(FUNDAMENTALS_PATH, exist_ok=True)
 
