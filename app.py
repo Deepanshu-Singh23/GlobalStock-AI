@@ -25,6 +25,90 @@ st.set_page_config(
     layout="wide"
 )
 
+
+# GLOBALSTOCK AI - PROFESSIONAL UI
+
+st.markdown("""
+<style>
+
+/* Main background */
+.stApp {
+    background: #0B1120;
+    color: #E5E7EB;
+}
+
+/* Main content */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+    max-width: 1500px;
+}
+
+/* Headings */
+h1, h2, h3 {
+    color: #F8FAFC !important;
+    font-weight: 700 !important;
+}
+
+/* Metric cards */
+[data-testid="stMetric"] {
+    background: linear-gradient(
+        135deg, #17243A, #111C2E
+    );
+    border: 1px solid #263750;
+    padding: 18px;
+    border-radius: 12px;
+}
+
+/* Metric values */
+[data-testid="stMetricValue"] {
+    color: #38BDF8;
+    font-weight: 700;
+}
+
+/* Buttons */
+.stButton > button {
+    background: #2563EB;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.stButton > button:hover {
+    background: #1D4ED8;
+    border: 1px solid #60A5FA;
+}
+
+/* Dataframes */
+[data-testid="stDataFrame"] {
+    border: 1px solid #263750;
+    border-radius: 10px;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: #101B2D;
+    border-right: 1px solid #263750;
+}
+
+/* Input fields */
+.stTextInput input,
+.stSelectbox div[data-baseweb="select"] {
+    background: #17243A;
+    border-radius: 8px;
+}
+
+/* Section separators */
+hr {
+    border-color: #263750;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
 st.title("🌍 GlobalStock AI")
 st.caption("Global Stock Market Research & Analytics Platform")
 st.info("Historical market data only. Prices may be delayed or unavailable.")
